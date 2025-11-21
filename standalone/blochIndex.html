@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KØ Triad - Bloch Sphere Controller</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/tone@14.9.11/build/Tone.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        #visualization-container {
+            flex-grow: 1;
+            position: relative;
+            min-height: 400px;
+        }
+        canvas {
+            display: block;
+        }
+        .control-panel {
+            background-color: #161b22;
+            padding: 10px;
+            border-top: 2px solid #238636;
+            max-height: 40vh;
+            overflow-y: auto;
+        }
+        .control-group {
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: #21262d;
+            border-radius: 4px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #238636;
+            cursor: pointer;
+        }
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            border-width: 1px;
+        }
+        .bg-red-900 { background-color: #7f1d1d; }
+        .border-red-500 { border-color: #ef4444; }
+        .bg-blue-900 { background-color: #1e3a8a; }
+        .border-blue-500 { border-color: #3b82f6; }
+        .bg-green-900 { background-color: #14532d; }
+        .border-green-500 { border-color: #22c55e; }
+        .bg-yellow-700 { background-color: #a16207; }
+    </style>
+</head>
+<body>
+    <div id="visualization-container"></div>
+    <div class="control-panel">
+        <h2 class="text-xl font-bold mb-3 text-center text-[#58a6ff]">Bloch Core Synthesis Control</h2>
+        <div class="flex justify-around text-xs mb-4">
+            <div id="ruber-status" class="status-badge bg-red-900 border-red-500">RUBER 🔥: OK</div>
+            <div id="suber-status" class="status-badge bg-blue-900 border-blue-500">SUBER ❄️: IDLE</div>
+            <div id="kuber-status" class="status-badge bg-green-900 border-green-500">KUBER 💧: READY</div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="control-group">
+                <label class="block text-sm font-medium mb-1 text-[#4ff095]">POLAR ANGLE (θ) - RUBER PITCH</label>
+                <input type="range" id="theta-control" min="0" max="180" value="90" step="1">
+                <span id="theta-value" class="text-xs mt-1 block">90°</span>
+            </div>
+            <div class="control-group">
+                <label class="block text-sm font-medium mb-1 text-[#f6d846]">AZIMUTHAL ANGLE (φ) - KUBER TEMPO</label>
+                <input type="range" id="phi-control" min="0" max="360" value="0" step="1">
+                <span id="phi-value" class="text-xs mt-1 block">0°</span>
+            </div>
+            <div class="control-group">
+                <label class="block text-sm font-medium mb-1 text-[#ff80b3]">DATA COHERENCE (ρ) - BLOC CORE COLOR</label>
+                <input type="range" id="coherence-control" min="0" max="100" value="100" step="1">
+                <span id="coherence-value" class="text-xs mt-1 block">100%</span>
+            </div>
+        </div>
+    </div>
+    <script>
+        let scene, camera, renderer, bloch_sphere, indicator_vector, axes;
+        const container = document.getElementById('visualization-container');
+        let ruberSynth, kuberSynth;
+        const thetaControl = document.getElementById('theta-control');
+        const phiControl = document.getElementById('phi-control');
+        const coherenceControl = document.getElementById('coherence-control');
+        let currentTheta = 90, currentPhi = 0, currentCoherence = 100;
+
+        function initAudio() {
+            ruberSynth = new Tone.Synth({ oscillator: { type: "square" }, envelope: { attack: 0.05, decay: 0.1, sustain: 0.6, release: 0.5 } }).toDestination();
+            ruberSynth.volume.value = -10;
+            kuberSynth = new Tone.MembraneSynth({ pitchDecay: 0.005, octaves: 1, oscillator: { type: "sine" }, envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 0.8 } }).toDestination();
+            kuberSynth.volume.value = -15;
+            console.log("Audio Context Initialized (Tone.js Ready)");
+        }
+
+        function initThree() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setClearColor(0x0d1117);
+            container.appendChild(renderer.domElement);
+            const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
+            const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0x161b22, wireframe: true, transparent: true, opacity: 0.5 });
+            bloch_sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+            scene.add(bloch_sphere);
+            axes = new THREE.AxesHelper(1.5);
+            scene.add(axes);
+            indicator_vector = new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, 0), 1, 0x58a6ff, 0.2, 0.1);
+            scene.add(indicator_vector);
+            camera.position.z = 2.5;
+            camera.position.y = 1;
+        }
+
+        function updateBlochVector(theta, phi, coherence) {
+            const thetaRad = theta * (Math.PI / 180);
+            const phiRad = phi * (Math.PI / 180);
+            const radius = coherence / 100;
+            const x = radius * Math.sin(thetaRad) * Math.cos(phiRad);
+            const y = radius * Math.sin(thetaRad) * Math.sin(phiRad);
+            const z = radius * Math.cos(thetaRad);
+            const direction = new THREE.Vector3(x, y, z).normalize();
+            const length = radius;
+            indicator_vector.setDirection(direction);
+            indicator_vector.setLength(length, 0.2, 0.1);
+            const color = new THREE.Color();
+            color.setHSL(0.33 * radius, 1, 0.5 + (0.5 * radius));
+            indicator_vector.setColor(color);
+            bloch_sphere.material.color.set(color.getHex());
+            bloch_sphere.material.opacity = 0.5 + (radius * 0.4);
+            bloch_sphere.rotation.y = phiRad * 0.1;
+            axes.rotation.y = phiRad * 0.1;
+            updateSonification(theta, phi, coherence);
+        }
+
+        function updateSonification(theta, phi, coherence) {
+            const pitch = 36 + Math.floor(theta / 180 * 24);
+            ruberSynth.frequency.setValueAtTime(Tone.Midi(pitch).toFrequency(), Tone.now());
+            const delayTime = 0.5 - (phi / 360) * 0.4;
+            const volume = -10 + (coherence / 100) * 5;
+            ruberSynth.volume.value = volume;
+            kuberSynth.volume.value = volume - 5;
+            if (Tone.Transport.state !== 'started') Tone.Transport.start();
+            if (!window.kuberPulse) {
+                window.kuberPulse = new Tone.Loop(time => {
+                    kuberSynth.triggerAttackRelease("C2", "16n", time);
+                    pulseUiStatus(delayTime);
+                }, delayTime + "s").start(0);
+            } else {
+                window.kuberPulse.interval = delayTime + "s";
+            }
+        }
+
+        function pulseUiStatus(delay) {
+            const statusDiv = document.getElementById('kuber-status');
+            statusDiv.classList.add('animate-pulse');
+            setTimeout(() => statusDiv.classList.remove('animate-pulse'), delay * 1000 * 0.5);
+        }
+
+        function handleInput() {
+            currentTheta = parseFloat(thetaControl.value);
+            currentPhi = parseFloat(phiControl.value);
+            currentCoherence = parseFloat(coherenceControl.value);
+            document.getElementById('theta-value').textContent = `${currentTheta}°`;
+            document.getElementById('phi-value').textContent = `${currentPhi}°`;
+            document.getElementById('coherence-value').textContent = `${currentCoherence}%`;
+            updateBlochVector(currentTheta, currentPhi, currentCoherence);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        window.onload = function() {
+            initThree();
+            initAudio();
+            animate();
+            window.addEventListener('resize', onWindowResize, false);
+            thetaControl.addEventListener('input', handleInput);
+            phiControl.addEventListener('input', handleInput);
+            coherenceControl.addEventListener('input', handleInput);
+            handleInput();
+            document.body.addEventListener('click', () => {
+                if (Tone.context && Tone.context.state !== 'running') Tone.context.resume();
+            }, { once: true });
+        };
+
+        window.injectAnomaly = function() {
+            coherenceControl.value = 30;
+            coherenceControl.dispatchEvent(new Event('input'));
+            document.getElementById('ruber-status').textContent = "RUBER 🔥: FAILURE";
+            document.getElementById('ruber-status').classList.add('bg-yellow-700');
+            document.getElementById('suber-status').textContent = "SUBER ❄️: MYCO ROUTE ACTIVE";
+            document.getElementById('suber-status').classList.add('bg-yellow-700');
+        };
+    </script>
+</body>
+</html>
