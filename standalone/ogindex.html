@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KØ Triad - Bloch Sphere Controller</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/tone@14.9.11/build/Tone.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="visualization-container"></div>
+    <div class="control-panel">
+        <h2 class="text-xl font-bold mb-3 text-center text-[#58a6ff]">Bloch Core Synthesis Control</h2>
+        <div class="flex justify-around text-xs mb-4">
+            <div id="ruber-status" class="status-badge bg-red-900 border-red-500">RUBER 🔥: OK</div>
+            <div id="suber-status" class="status-badge bg-blue-900 border-blue-500">SUBER ❄️: IDLE</div>
+            <div id="kuber-status" class="status-badge bg-green-900 border-green-500">KUBER 💧: READY</div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="control-group">
+                <label class="block text-sm font-medium mb-1 text-[#4ff095]">POLAR ANGLE (θ) - RUBER PITCH</label>
+                <input type="range" id="theta-control" min="0" max="180" value="90" step="1">
+                <span id="theta-value" class="text-xs mt-1 block">90°</span>
+            </div>
+            <div class="control-group">
+                <label class="block text-sm font-medium mb-1 text-[#f6d846]">AZIMUTHAL ANGLE (φ) - KUBER TEMPO</label>
+                <input type="range" id="phi-control" min="0" max="360" value="0" step="1">
+                <span id="phi-value" class="text-xs mt-1 block">0°</span>
+            </div>
+            <div class="control-group">
+                <label class="block text-sm font-medium mb-1 text-[#ff80b3]">DATA COHERENCE (ρ) - BLOC CORE COLOR</label>
+                <input type="range" id="coherence-control" min="0" max="100" value="100" step="1">
+                <span id="coherence-value" class="text-xs mt-1 block">100%</span>
+            </div>
+        </div>
+    </div>
+    <script src="js/main.js"></script>
+</body>
+</html>
