@@ -1,0 +1,33 @@
+# manifests/02-foundry-daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: neurofiber-foundry
+  namespace: kø-triad
+spec:
+  selector:
+    matchLabels:
+      component: foundry
+  template:
+    metadata:
+      labels:
+        component: foundry
+    spec:
+      nodeSelector:
+        accelerator: "true"
+      containers:
+      - name: forge-core
+        image: ghcr.io/neurofiber/loom-engine:v1.2.0-gpu
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+            memory: 24Gi
+        ports:
+        - containerPort: 8080
+        env:
+        - name: ORB_CAPACITY
+          value: "2048"
+        - name: GRAV_CONSTANT
+          value: "6.67430e-11"
+        securityContext:
+          privileged: true
