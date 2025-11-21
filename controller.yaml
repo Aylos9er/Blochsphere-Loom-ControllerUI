@@ -1,0 +1,26 @@
+# manifests/03-triad-controller.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kuber-controller
+  namespace: kø-triad
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      component: controller
+  template:
+    metadata:
+      labels:
+        component: controller
+    spec:
+      serviceAccountName: triad-operator
+      containers:
+      - name: operator
+        image: ghcr.io/krs-triad/operator:v1.0.0
+        command: ["/triad-operator"]
+        ports:
+        - containerPort: 7443
+        env:
+        - name: KUBER_ENDPOINT
+          value: "https://kuber-api.kø-triad:7443"
