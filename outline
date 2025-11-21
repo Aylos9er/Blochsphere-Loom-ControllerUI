@@ -1,0 +1,6 @@
+bloch-controller/
+├── index.html              # Your original UI (unchanged logic)
+├── js/
+│   └── main.js             # Extracted Three.js/Tone.js code
+└── css/
+    └── style.css           # Tailwind styling
